@@ -42,7 +42,7 @@ function InstallDots(o) {
 	if (this.__destination[this.__destination.length-1] !== '/') this.__destination += '/';
 	this.__global		= o.global || "window.render";
 	this.__rendermodule	= o.rendermodule || {};
-	this.__settings 	= o.templateSettings ? copy(o.templateSettings, copy(doT.templateSettings)) : undefined;
+	this.__settings 	= Object.prototype.hasOwnProperty.call(o,"templateSettings") ? copy(o.templateSettings, copy(doT.templateSettings)) : undefined;
 	this.__includes		= {};
 }
 
@@ -58,6 +58,12 @@ InstallDots.prototype.compileToFile = function(path, template, def) {
 		, fn;
 
 	for (var property in defs) {
+		// It looks like the code block inside "if" below can never be executed,
+		// because InstallDots constructor is private, compileToFile is only called from compileAll method
+		// and def parameter is never passed to it, so the condition in if will always fail.
+		// This code will be removed from the next major version.
+		// For now it is only excluded from coverage report
+		/* istanbul ignore if */
 		if (defs[property] !== def[property] && defs[property] !== this.__includes[property]) {
 			fn = undefined;
 			if (typeof defs[property] === 'string') {
@@ -83,7 +89,8 @@ InstallDots.prototype.compileToFile = function(path, template, def) {
 };
 
 function addexports(exports) {
-	for (var ret ='', i=0; i< exports.length; i++) {
+	var ret = '';
+	for (var i=0; i< exports.length; i++) {
 		ret += "itself." + exports[i]+ "=" + exports[i]+";";
 	}
 	return ret;
@@ -113,7 +120,7 @@ InstallDots.prototype.compilePath = function(path) {
 };
 
 InstallDots.prototype.compileAll = function() {
-	console.log("Compiling all doT templates...");
+	if (doT.log) console.log("Compiling all doT templates...");
 
 	var defFolder = this.__path,
 		sources = fs.readdirSync(defFolder),
@@ -122,7 +129,7 @@ InstallDots.prototype.compileAll = function() {
 	for( k = 0, l = sources.length; k < l; k++) {
 		name = sources[k];
 		if (/\.def(\.dot|\.jst)?$/.test(name)) {
-			console.log("Loaded def " + name);
+			if (doT.log) console.log("Loaded def " + name);
 			this.__includes[name.substring(0, name.indexOf('.'))] = readdata(defFolder + name);
 		}
 	}
@@ -130,11 +137,11 @@ InstallDots.prototype.compileAll = function() {
 	for( k = 0, l = sources.length; k < l; k++) {
 		name = sources[k];
 		if (/\.dot(\.def|\.jst)?$/.test(name)) {
-			console.log("Compiling " + name + " to function");
+			if (doT.log) console.log("Compiling " + name + " to function");
 			this.__rendermodule[name.substring(0, name.indexOf('.'))] = this.compilePath(defFolder + name);
 		}
 		if (/\.jst(\.dot|\.def)?$/.test(name)) {
-			console.log("Compiling " + name + " to file");
+			if (doT.log) console.log("Compiling " + name + " to file");
 			this.compileToFile(this.__destination + name.substring(0, name.indexOf('.')) + '.js',
 					readdata(defFolder + name));
 		}
